@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusLens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --border: #1e1e2e;
+      --text: #e8e8f0;
+      --muted: #6b6b8a;
+      --productive: #00d4aa;
+      --neutral: #f59e0b;
+      --unproductive: #f43f5e;
+      --accent: #7c6ff7;
+    }
+
+    body {
+      width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1025 100%);
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -20px; right: -20px;
+      width: 80px; height: 80px;
+      background: radial-gradient(circle, rgba(124,111,247,0.3) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .logo-text {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    /* Current site card */
+    .current-site {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 14px 16px;
+    }
+
+    .site-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .site-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 8px;
+    }
+
+    .site-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .category-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .category-badge.productive { background: rgba(0,212,170,0.15); color: var(--productive); border: 1px solid rgba(0,212,170,0.3); }
+    .category-badge.neutral { background: rgba(245,158,11,0.15); color: var(--neutral); border: 1px solid rgba(245,158,11,0.3); }
+    .category-badge.unproductive { background: rgba(244,63,94,0.15); color: var(--unproductive); border: 1px solid rgba(244,63,94,0.3); }
+
+    .session-time {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    /* Today's stats */
+    .section {
+      padding: 0 16px 14px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .score-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .score-card {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .score-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .score-value.good { color: var(--productive); }
+    .score-value.mid { color: var(--neutral); }
+    .score-value.bad { color: var(--unproductive); }
+
+    .score-label {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* Progress bar */
+    .productivity-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 4px;
+      display: flex;
+      gap: 2px;
+    }
+
+    .bar-productive { background: var(--productive); border-radius: 3px; transition: width 0.5s ease; }
+    .bar-neutral { background: var(--neutral); border-radius: 3px; transition: width 0.5s ease; }
+    .bar-unproductive { background: var(--unproductive); border-radius: 3px; transition: width 0.5s ease; }
+
+    .bar-legend {
+      display: flex;
+      gap: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .legend-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+
+    /* Top sites */
+    .site-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .site-row:last-child { border-bottom: none; }
+
+    .site-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .site-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .site-domain {
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .site-bar {
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      margin-top: 4px;
+    }
+
+    .site-bar-fill {
+      height: 100%;
+      border-radius: 1px;
+    }
+
+    .site-time {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    /* Footer buttons */
+    .footer {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      color: white;
+    }
+
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+
+    .no-data {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      padding: 12px 0;
+    }
+
+    /* Pulse animation for live tracking */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .live-dot {
+      width: 6px; height: 6px;
+      background: var(--productive);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+      display: inline-block;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🔍</div>
+    <div class="logo-text">Focus<span>Lens</span></div>
+  </div>
+</div>
+
+<div class="current-site">
+  <div class="site-label"><span class="live-dot"></span>Currently Tracking</div>
+  <div class="site-name" id="currentDomain">Loading...</div>
+  <div class="site-meta">
+    <span class="category-badge neutral" id="currentCategory">—</span>
+    <span class="session-time" id="sessionTime">0:00</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Today's Summary</div>
+  <div class="score-row">
+    <div class="score-card">
+      <div class="score-value" id="totalHours">0h</div>
+      <div class="score-label">Tracked</div>
+    </div>
+    <div class="score-card">
+      <div class="score-value good" id="productivityScore">—%</div>
+      <div class="score-label">Productive</div>
+    </div>
+    <div class="score-card">
+      <div class="score-value" id="sitesVisited">0</div>
+      <div class="score-label">Sites</div>
+    </div>
+  </div>
+
+  <div class="productivity-bar">
+    <div class="bar-productive" id="barProductive" style="width: 0%"></div>
+    <div class="bar-neutral" id="barNeutral" style="width: 0%"></div>
+    <div class="bar-unproductive" id="barUnproductive" style="width: 0%"></div>
+  </div>
+  <div class="bar-legend">
+    <div class="legend-item"><div class="legend-dot" style="background: #00d4aa"></div>Productive</div>
+    <div class="legend-item"><div class="legend-dot" style="background: #f59e0b"></div>Neutral</div>
+    <div class="legend-item"><div class="legend-dot" style="background: #f43f5e"></div>Unproductive</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Top Sites Today</div>
+  <div id="topSites"><div class="no-data">No data yet — start browsing!</div></div>
+</div>
+
+<div class="footer">
+  <button class="btn btn-primary" id="btnDashboard">📊 Full Dashboard</button>
+  <button class="btn btn-secondary" id="btnReset">Reset</button>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
