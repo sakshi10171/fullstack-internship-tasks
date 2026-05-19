@@ -1,0 +1,204 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 16px;
+  background: #fff;
+  border-bottom: 0.5px solid #e0dfd8;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  user-select: none;
+}
+
+.tb-sep {
+  width: 0.5px;
+  height: 22px;
+  background: #e0dfd8;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.tb-btn {
+  min-width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #374151;
+  font-size: 12px;
+  transition: background 0.1s, color 0.1s;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.tb-btn:hover {
+  background: #f3f4f6;
+  color: #111;
+}
+
+.tb-btn.strike {
+  text-decoration: line-through;
+}
+
+.tb-btn.tb-text {
+  font-weight: 800;
+  font-size: 11px;
+}
+
+/* Color preview button */
+.color-btn-preview {
+  font-size: 13px;
+  font-weight: 700;
+  gap: 2px;
+  padding: 0 5px;
+}
+
+.color-arrow {
+  font-size: 8px;
+  color: #9ca3af;
+}
+
+.tb-select {
+  font-size: 12px;
+  border: 0.5px solid #e0dfd8;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: #fff;
+  color: #374151;
+  outline: none;
+  cursor: pointer;
+  height: 30px;
+}
+
+.tb-select-wide {
+  min-width: 110px;
+}
+
+.tb-select:focus {
+  border-color: #378ADD;
+}
+
+/* Dropdown */
+.tb-dropdown-wrap {
+  position: relative;
+}
+
+.tb-dropdown {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  background: #fff;
+  border: 0.5px solid #e0dfd8;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.13);
+  z-index: 300;
+  padding: 10px;
+  min-width: 160px;
+}
+
+/* Color grid */
+.color-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 170px;
+}
+
+.color-grid-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.color-grid .swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  display: inline-block;
+}
+
+.color-swatch:hover {
+  transform: scale(1.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Override — make color-grid a wrap row */
+.tb-dropdown.color-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.tb-dropdown.color-grid .color-grid-label {
+  grid-column: 1 / -1;
+}
+
+/* Put swatches in a row inside the grid dropdown */
+.tb-dropdown.color-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px;
+}
+
+.tb-dropdown.color-grid .color-grid-label {
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+/* Table menu */
+.table-menu {
+  min-width: 180px;
+}
+
+.table-menu-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.table-row-opt {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.table-cell-btn {
+  flex: 1;
+  padding: 7px 4px;
+  background: #f5f5f3;
+  border: 0.5px solid #e0dfd8;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.1s;
+}
+
+.table-cell-btn:hover {
+  background: #378ADD;
+  color: #fff;
+  border-color: #378ADD;
+}

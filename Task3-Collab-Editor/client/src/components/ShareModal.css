@@ -1,0 +1,58 @@
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999; padding: 20px;
+}
+.modal-box {
+  background: #fff; border-radius: 14px;
+  width: 100%; max-width: 460px;
+  padding: 28px; box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.modal-header h2 { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+.modal-close { background: none; border: none; font-size: 16px; cursor: pointer; color: #9ca3af; padding: 4px; }
+.modal-close:hover { color: #1a1a1a; }
+
+.modal-section { margin-bottom: 20px; }
+.modal-label { display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+.invite-row { display: flex; gap: 8px; }
+.invite-row input { flex: 1; padding: 9px 12px; border: 0.5px solid #e0dfd8; border-radius: 8px; font-size: 13px; outline: none; }
+.invite-row input:focus { border-color: #378ADD; }
+.invite-row select { padding: 9px 8px; border: 0.5px solid #e0dfd8; border-radius: 8px; font-size: 13px; background: #fff; outline: none; cursor: pointer; }
+.invite-btn {
+  padding: 9px 14px; background: #378ADD; color: #fff;
+  border: none; border-radius: 8px; font-size: 13px;
+  font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.invite-btn:hover:not(:disabled) { background: #185FA5; }
+.invite-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.link-row { display: flex; gap: 8px; }
+.link-row input { flex: 1; padding: 9px 12px; border: 0.5px solid #e0dfd8; border-radius: 8px; font-size: 12px; background: #f5f5f3; outline: none; color: #555; }
+.copy-btn { padding: 9px 14px; border: 0.5px solid #e0dfd8; border-radius: 8px; background: #fff; font-size: 13px; cursor: pointer; font-weight: 500; }
+.copy-btn:hover { background: #f5f5f3; }
+
+.gen-link-btn {
+  width: 100%; padding: 10px; border: 1px dashed #d1d5db;
+  border-radius: 8px; background: transparent;
+  font-size: 13px; color: #378ADD; cursor: pointer;
+}
+.gen-link-btn:hover:not(:disabled) { background: #f0f7ff; }
+.gen-link-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.collab-row-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 0.5px solid #f3f4f6;
+}
+.collab-av-sm {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: #fff; flex-shrink: 0;
+}
+.collab-name { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.collab-email { font-size: 11px; color: #9ca3af; }
+.collab-perm { margin-left: auto; font-size: 11px; color: #378ADD; background: #e8f2fc; padding: 2px 8px; border-radius: 10px; }
+
+.modal-message { margin-top: 12px; font-size: 13px; color: #1D9E75; text-align: center; padding: 8px; background: #f0fdf4; border-radius: 8px; }
