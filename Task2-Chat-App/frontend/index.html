@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LiveChat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f5f5; --surface: #ffffff; --surface2: #f0f0f0;
+      --border: #e0e0e0; --text: #1a1a1a; --muted: #888888;
+      --blue: #185FA5; --blue-light: #E6F1FB; --blue-text: #0C447C;
+      --online: #3B6D11; --radius: 10px;
+    }
+    html, body { height: 100%; width: 100%; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); display: flex; height: 100vh; margin: 0; padding: 0; }
+
+    /* JOIN */
+    #join-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .join-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px 36px; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+    .join-logo { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .join-logo span { color: var(--blue); }
+    .join-sub { font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+    .join-label { font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 8px; }
+    .join-input { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.2s; margin-bottom: 14px; }
+    .join-input:focus { border-color: var(--blue); }
+    .join-input::placeholder { color: var(--muted); }
+    .join-btn { width: 100%; background: var(--blue); color: white; border: none; border-radius: var(--radius); padding: 13px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+    .join-btn:hover { opacity: 0.88; }
+
+    /* APP */
+    #app { display: none; width: 100%; height: 100vh; background: var(--surface); overflow: hidden; }
+    #app.visible { display: flex; }
+
+    /* SIDEBAR */
+    .sidebar { width: 260px; min-width: 260px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: #fafafa; }
+    .sb-header { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); }
+    .sb-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .search-box { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0; overflow: hidden; cursor: text; }
+    .search-box input { flex: 1; border: none; background: transparent; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text); outline: none; padding: 8px 10px; }
+    .search-box input::placeholder { color: var(--muted); }
+    .search-box svg { margin-left: 10px; flex-shrink: 0; color: var(--muted); }
+    .sb-section { padding: 14px 16px 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    #contact-list { flex: 1; overflow-y: auto; }
+    #contact-list::-webkit-scrollbar { width: 0; }
+    .contact { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; transition: background 0.12s; border-left: 2px solid transparent; }
+    .contact:hover { background: var(--surface2); }
+    .contact.active { background: var(--blue-light); border-left-color: var(--blue); }
+    .av { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; position: relative; }
+    .av-dot { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--surface); position: absolute; bottom: 0; right: 0; }
+    .dot-on { background: var(--online); }
+    .dot-off { background: var(--border); }
+    .c-info { flex: 1; min-width: 0; }
+    .c-name { font-size: 13px; font-weight: 500; color: var(--text); }
+    .c-last { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .c-time { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+    .c-badge { background: var(--blue); color: white; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 20px; flex-shrink: 0; }
+
+    /* CHAT MAIN */
+    .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .chat-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .chat-user { display: flex; align-items: center; gap: 10px; }
+    .chat-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .chat-status { font-size: 11px; color: var(--online); margin-top: 2px; }
+    .header-actions { display: flex; gap: 4px; position: relative; }
+    .h-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); transition: background 0.12s, color 0.12s; }
+    .h-btn:hover { background: var(--surface2); color: var(--text); }
+    .h-btn.active { background: var(--blue-light); color: var(--blue); }
+
+    /* DROPDOWN MENU */
+    .dropdown { display: none; position: absolute; top: 38px; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); z-index: 100; min-width: 180px; padding: 6px 0; }
+    .dropdown.open { display: block; }
+    .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: 13px; color: var(--text); cursor: pointer; transition: background 0.1s; }
+    .dropdown-item:hover { background: var(--surface2); }
+    .dropdown-item svg { color: var(--muted); flex-shrink: 0; }
+    .dropdown-sep { height: 1px; background: var(--border); margin: 4px 0; }
+    .dropdown-item.danger { color: #e53e3e; }
+    .dropdown-item.danger svg { color: #e53e3e; }
+
+    /* CALL MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 150; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: 16px; padding: 32px 28px; width: 320px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+    .modal-av { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 600; margin: 0 auto 14px; }
+    .modal-name { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+    .modal-actions { display: flex; justify-content: center; gap: 20px; }
+    .modal-btn { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    .modal-btn:hover { opacity: 0.88; transform: scale(1.06); }
+    .modal-btn.end { background: #e53e3e; }
+    .modal-btn.accept { background: var(--online); }
+    .modal-pulse { animation: modalPulse 1.5s ease-in-out infinite; }
+    @keyframes modalPulse { 0%,100%{box-shadow:0 0 0 0 rgba(24,95,165,0.4)} 50%{box-shadow:0 0 0 12px rgba(24,95,165,0)} }
+    .modal-btn.accept { background: #3B6D11; }
+    @keyframes ringPulse { 0%,100%{box-shadow:0 0 0 0 rgba(59,109,17,0.5)} 50%{box-shadow:0 0 0 14px rgba(59,109,17,0)} }
+    .ring-pulse { animation: ringPulse 1s ease-in-out infinite; }
+
+    /* MESSAGES */
+    #messages { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .msg { display: flex; align-items: flex-end; gap: 8px; animation: fadeUp 0.2s ease; }
+    .msg.mine { flex-direction: row-reverse; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .msg-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+    .msg-body { max-width: 58%; }
+    .msg-sender { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+    .msg.mine .msg-sender { text-align: right; }
+    .bubble { padding: 9px 13px; border-radius: 14px; font-size: 13px; line-height: 1.55; color: var(--text); background: var(--surface2); border: 1px solid var(--border); word-break: break-word; }
+    .bubble.mine { background: var(--blue); border-color: var(--blue); color: white; }
+    .msg-time { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .msg.mine .msg-time { text-align: right; }
+    .sys-msg { text-align: center; font-size: 11px; color: var(--muted); animation: fadeUp 0.2s ease; }
+    .sys-msg span { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; }
+    .typing-row { display: flex; align-items: center; gap: 8px; }
+    .typing-bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; display: flex; gap: 4px; align-items: center; }
+    .td { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: typingDot 1.2s ease-in-out infinite; }
+    .td:nth-child(2) { animation-delay: 0.2s; }
+    .td:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingDot { 0%,60%,100%{opacity:0.3;transform:translateY(0)} 30%{opacity:1;transform:translateY(-4px)} }
+
+    /* FILE BUBBLE */
+    .file-bubble { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
+    .file-bubble.mine { background: #dbeafe; border-color: #B5D4F4; }
+    .file-icon-wrap { width: 36px; height: 36px; background: var(--blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .file-info .fname { font-size: 13px; font-weight: 500; color: var(--text); }
+    .file-info .fsize { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* INPUT AREA */
+    .input-area { padding: 12px 20px 16px; border-top: 1px solid var(--border); position: relative; }
+    #emoji-picker { display: none; position: absolute; bottom: 130px; left: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 50; width: 300px; }
+    #emoji-picker.open { display: block; }
+    .emoji-search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-family: 'Inter', sans-serif; outline: none; margin-bottom: 8px; color: var(--text); background: var(--surface2); }
+    .emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-height: 180px; overflow-y: auto; }
+    .emoji-btn { font-size: 20px; cursor: pointer; text-align: center; padding: 4px; border-radius: 6px; transition: background 0.1s; line-height: 1; }
+    .emoji-btn:hover { background: var(--surface2); }
+    #file-preview { display: none; align-items: center; gap: 8px; background: var(--blue-light); border: 1px solid #B5D4F4; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; font-size: 12px; color: var(--blue-text); }
+    #file-preview.show { display: flex; }
+    #file-preview .fp-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #file-preview .fp-remove { cursor: pointer; color: var(--muted); font-size: 18px; font-weight: 500; line-height: 1; }
+    #file-preview .fp-remove:hover { color: #e53e3e; }
+    .input-tools { display: flex; gap: 2px; margin-bottom: 8px; }
+    .tool-btn { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); transition: background 0.12s, color 0.12s; }
+    .tool-btn:hover { background: var(--surface2); color: var(--text); }
+    .input-row { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; transition: border-color 0.2s; }
+    .input-row:focus-within { border-color: var(--blue); }
+    #msg-input { flex: 1; border: none; background: transparent; font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text); outline: none; }
+    #msg-input::placeholder { color: var(--muted); }
+    .send-btn { width: 30px; height: 30px; background: var(--blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
+    .send-btn:hover { opacity: 0.85; }
+
+    /* ONLINE PANEL */
+    .online-panel { width: 200px; min-width: 200px; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: #fafafa; }
+    .panel-header { padding: 18px 14px 14px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; color: var(--text); }
+    .panel-section { padding: 12px 14px 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    #online-list { padding: 0 14px; flex: 1; overflow-y: auto; }
+    #online-list::-webkit-scrollbar { width: 0; }
+    .online-user { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); animation: fadeUp 0.2s ease; }
+    .online-user:last-child { border-bottom: none; }
+    .online-av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; position: relative; }
+    .online-dot { width: 8px; height: 8px; background: var(--online); border-radius: 50%; border: 2px solid #fafafa; position: absolute; bottom: 0; right: 0; }
+    .online-name { font-size: 12px; color: var(--text); font-weight: 500; }
+    .online-you { font-size: 10px; color: var(--muted); }
+
+    /* TOAST */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1a1a1a; color: white; font-size: 13px; padding: 10px 18px; border-radius: 8px; z-index: 300; opacity: 0; transition: all 0.3s ease; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div id="join-screen">
+  <div class="join-card">
+    <div class="join-logo">Live<span>Chat</span></div>
+    <div class="join-sub">Real-time messaging · Socket.IO · Node.js</div>
+    <div class="join-label">Your name</div>
+    <input id="username-input" class="join-input" type="text" placeholder="e.g. Sneha" maxlength="20" autocomplete="off"/>
+    <button class="join-btn" onclick="joinChat()">Join Chat</button>
+  </div>
+</div>
+
+<!-- OUTGOING CALL MODAL -->
+<div class="modal-overlay" id="call-modal">
+  <div class="modal">
+    <div class="modal-av modal-pulse" id="call-av" style="background:#EAF3DE;color:#27500A">GC</div>
+    <div class="modal-name" id="call-title">General Chat</div>
+    <div class="modal-sub" id="call-sub">Calling...</div>
+    <div class="modal-actions">
+      <div class="modal-btn end" onclick="endCall()" title="End call">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.69 12"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INCOMING CALL MODAL -->
+<div class="modal-overlay" id="incoming-modal">
+  <div class="modal">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:14px;" id="incoming-type-label">Incoming Voice Call</div>
+    <div class="modal-av modal-pulse" id="incoming-av" style="background:#EAF3DE;color:#27500A">AB</div>
+    <div class="modal-name" id="incoming-name">Someone</div>
+    <div class="modal-sub">is calling you...</div>
+    <div class="modal-actions">
+      <div style="text-align:center;">
+        <div class="modal-btn end" onclick="declineCall()" title="Decline" style="margin:0 auto 6px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.69 12"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Decline</div>
+      </div>
+      <div style="text-align:center;">
+        <div class="modal-btn accept" onclick="acceptCall()" title="Accept" style="margin:0 auto 6px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.41 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Accept</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-title">Messages</div>
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search users..." id="search-input" oninput="filterContacts(this.value)" autocomplete="off"/>
+      </div>
+    </div>
+    <div class="sb-section">Online now</div>
+    <div id="contact-list"></div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-main">
+    <div class="chat-header">
+      <div class="chat-user">
+        <div class="av" id="header-av" style="background:#EAF3DE;color:#27500A">GC</div>
+        <div>
+          <div class="chat-name">General Chat</div>
+          <div class="chat-status" id="header-status">connecting...</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Voice Call -->
+        <div class="h-btn" title="Voice call" onclick="startCall('voice')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.41 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <!-- Video Call -->
+        <div class="h-btn" title="Video call" onclick="startCall('video')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <!-- Three dots menu -->
+        <div class="h-btn" title="More options" onclick="toggleDropdown()" id="dots-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </div>
+        <!-- Dropdown -->
+        <div class="dropdown" id="dropdown-menu">
+          <div class="dropdown-item" onclick="clearChat()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Clear chat
+          </div>
+          <div class="dropdown-item" onclick="copyRoomLink()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Copy room link
+          </div>
+          <div class="dropdown-item" onclick="showPeople()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            View members
+          </div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item danger" onclick="leaveChat()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Leave chat
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="messages"></div>
+
+    <div class="input-area">
+      <!-- Emoji Picker -->
+      <div id="emoji-picker">
+        <input class="emoji-search" type="text" placeholder="Search emoji..." oninput="filterEmojis(this.value)"/>
+        <div class="emoji-grid" id="emoji-grid"></div>
+      </div>
+      <!-- File Preview -->
+      <div id="file-preview">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="fp-name" id="fp-name">file.pdf</span>
+        <span class="fp-remove" onclick="removeFile()">&#215;</span>
+      </div>
+      <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(this)"/>
+      <div class="input-tools">
+        <div class="tool-btn" title="Attach file" onclick="document.getElementById('file-input').click()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </div>
+        <div class="tool-btn" title="Emoji" onclick="toggleEmojiPicker(event)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </div>
+        <div class="tool-btn" title="Code snippet" onclick="insertCode()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+      </div>
+      <div class="input-row">
+        <input id="msg-input" type="text" placeholder="Type a message..." autocomplete="off"/>
+        <div class="send-btn" onclick="sendMessage()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONLINE PANEL -->
+  <div class="online-panel">
+    <div class="panel-header">People</div>
+    <div class="panel-section">In this chat</div>
+    <div id="online-list"></div>
+  </div>
+
+</div>
+
+<script>
+  let socket, myUsername = '', mySocketId = '', typingTimer, selectedFile = null;
+  let allUsers = [];
+  const msgInput = document.getElementById('msg-input');
+
+  // ── EMOJIS ──
+  const ALL_EMOJIS = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','🥴','🤠','😈','👿','💀','👋','🤚','🖐️','✋','🖖','👌','✌️','🤞','👍','👎','✊','👏','🙌','🙏','💪','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💓','💗','💖','💘','💝','🔥','💥','✨','🌟','⭐','🌈','☀️','❄️','🌊','💧','🎉','🎊','🎈','🎁','🎂','🚀','✈️','🚗','⚽','🏀','🎮','🎲','🎨','🍕','🍔','🍟','🍎','🍊','🍋','🍇','🍓','💰','💻','📱','📚','📝','👑','💎','🏆','🥇','🔑','🛡️','🌍','🌸','🦋','🐶','🐱','🐼','🦁','🐯','🐻','🦊','🐸','🐧','🦄'];
+
+  function buildEmojiGrid(emojis) {
+    document.getElementById('emoji-grid').innerHTML = emojis.map(e =>
+      `<div class="emoji-btn" onclick="insertEmoji('${e}')">${e}</div>`
+    ).join('');
+  }
+
+  function filterEmojis(q) {
+    buildEmojiGrid(q ? ALL_EMOJIS.filter(e => e.includes(q)) : ALL_EMOJIS);
+  }
+
+  function toggleEmojiPicker(e) {
+    e && e.stopPropagation();
+    const p = document.getElementById('emoji-picker');
+    p.classList.toggle('open');
+    if (p.classList.contains('open')) buildEmojiGrid(ALL_EMOJIS);
+  }
+
+  function insertEmoji(emoji) {
+    msgInput.value += emoji;
+    msgInput.focus();
+    document.getElementById('emoji-picker').classList.remove('open');
+  }
+
+  // ── FILE ──
+  function handleFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    selectedFile = file;
+    document.getElementById('fp-name').textContent = file.name;
+    document.getElementById('file-preview').classList.add('show');
+    msgInput.placeholder = 'Add a message (optional)...';
+    msgInput.focus();
+  }
+
+  function removeFile() {
+    selectedFile = null;
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-preview').classList.remove('show');
+    msgInput.placeholder = 'Type a message...';
+  }
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    return (b/1048576).toFixed(1) + ' MB';
+  }
+
+  // ── SEARCH ──
+  function filterContacts(q) {
+    renderContacts(q ? allUsers.filter(u => u.username.toLowerCase().includes(q.toLowerCase())) : allUsers);
+  }
+
+  // ── DROPDOWN ──
+  function toggleDropdown() {
+    const d = document.getElementById('dropdown-menu');
+    const b = document.getElementById('dots-btn');
+    d.classList.toggle('open');
+    b.classList.toggle('active');
+  }
+
+  function clearChat() {
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('dropdown-menu').classList.remove('open');
+    document.getElementById('dots-btn').classList.remove('active');
+    showToast('Chat cleared');
+  }
+
+  function copyRoomLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => showToast('Room link copied!'));
+    document.getElementById('dropdown-menu').classList.remove('open');
+    document.getElementById('dots-btn').classList.remove('active');
+  }
+
+  function showPeople() {
+    const names = allUsers.map(u => u.username).join(', ');
+    showToast('Online: ' + (names || 'Just you'));
+    document.getElementById('dropdown-menu').classList.remove('open');
+    document.getElementById('dots-btn').classList.remove('active');
+  }
+
+  function leaveChat() {
+    document.getElementById('dropdown-menu').classList.remove('open');
+    if (socket) socket.disconnect();
+    document.getElementById('app').classList.remove('visible');
+    document.getElementById('join-screen').style.display = 'flex';
+    document.getElementById('username-input').value = '';
+    document.getElementById('messages').innerHTML = '';
+  }
+
+  // ── CALL ──
+  let activeCallType = null;
+
+  function startCall(type) {
+    if (!socket) return;
+    activeCallType = type;
+    // Show outgoing modal
+    document.getElementById('call-title').textContent = 'General Chat';
+    document.getElementById('call-sub').textContent = type === 'video' ? 'Starting video call...' : 'Calling...';
+    document.getElementById('call-modal').classList.add('open');
+    // Tell others via socket
+    socket.emit('start_call', type);
+    showToast(type === 'video' ? '📹 Video call started' : '📞 Voice call started');
+  }
+
+  function endCall() {
+    document.getElementById('call-modal').classList.remove('open');
+    document.getElementById('incoming-modal').classList.remove('open');
+    if (socket) socket.emit('end_call');
+    activeCallType = null;
+    showToast('Call ended');
+  }
+
+  function declineCall() {
+    document.getElementById('incoming-modal').classList.remove('open');
+    if (socket) socket.emit('decline_call');
+    showToast('Call declined');
+  }
+
+  function acceptCall() {
+    document.getElementById('incoming-modal').classList.remove('open');
+    // Show a simple "In call" state
+    showToast('✅ Call accepted — connected!');
+    addSystemMessage('📞 Call in progress...');
+  }
+
+  function showIncomingCall(data) {
+    const { type, callerName, callerInitials, callerBg, callerColor } = data;
+    document.getElementById('incoming-av').textContent = callerInitials;
+    document.getElementById('incoming-av').style.background = callerBg;
+    document.getElementById('incoming-av').style.color = callerColor;
+    document.getElementById('incoming-av').className = 'modal-av ring-pulse';
+    document.getElementById('incoming-name').textContent = callerName;
+    document.getElementById('incoming-type-label').textContent =
+      type === 'video' ? '📹 Incoming Video Call' : '📞 Incoming Voice Call';
+    document.getElementById('incoming-modal').classList.add('open');
+  }
+
+  // ── TOAST ──
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ── CODE SNIPPET ──
+  function insertCode() {
+    msgInput.value += '`code here`';
+    msgInput.focus();
+    const len = msgInput.value.length;
+    msgInput.setSelectionRange(len - 11, len - 1);
+  }
+
+  // ── CLOSE popups on outside click ──
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#emoji-picker') && !e.target.closest('.tool-btn')) {
+      document.getElementById('emoji-picker').classList.remove('open');
+    }
+    if (!e.target.closest('#dropdown-menu') && !e.target.closest('#dots-btn')) {
+      document.getElementById('dropdown-menu').classList.remove('open');
+      document.getElementById('dots-btn').classList.remove('active');
+    }
+    if (e.target === document.getElementById('call-modal')) endCall();
+  });
+
+  // ── INPUT EVENTS ──
+  msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+  document.getElementById('username-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinChat(); });
+  msgInput.addEventListener('input', () => {
+    if (!socket) return;
+    socket.emit('typing', true);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => socket.emit('typing', false), 1500);
+  });
+
+  // ── JOIN ──
+  function joinChat() {
+    const input = document.getElementById('username-input');
+    const name = input.value.trim();
+    if (!name) { input.style.borderColor = '#e53e3e'; return; }
+    myUsername = name;
+    socket = io();
+
+    socket.on('connect', () => {
+      mySocketId = socket.id;
+      document.getElementById('header-status').textContent = 'Active now';
+      document.getElementById('header-status').style.color = '#3B6D11';
+      socket.emit('user_join', myUsername);
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('header-status').textContent = 'Disconnected';
+      document.getElementById('header-status').style.color = '#e53e3e';
+    });
+
+    socket.on('receive_message', (data) => { removeTyping(); addMessage(data); });
+    socket.on('system_message', (data) => addSystemMessage(data.text));
+    socket.on('user_list', (users) => { allUsers = users; renderContacts(users); renderOnline(users); });
+    socket.on('user_typing', ({ username, initials, bg, color, isTyping }) => {
+      removeTyping();
+      if (isTyping) showTyping(initials, bg, color);
+    });
+
+    // Call events from server
+    socket.on('incoming_call', (data) => {
+      showIncomingCall(data);
+    });
+
+    socket.on('call_ended', () => {
+      document.getElementById('incoming-modal').classList.remove('open');
+      document.getElementById('call-modal').classList.remove('open');
+      showToast('Call ended');
+    });
+
+    socket.on('call_declined', () => {
+      document.getElementById('call-modal').classList.remove('open');
+      showToast('Call was declined');
+    });
+
+    document.getElementById('join-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    setTimeout(() => msgInput.focus(), 100);
+  }
+
+  // ── SEND ──
+  function sendMessage() {
+    const text = msgInput.value.trim();
+    if (!text && !selectedFile) return;
+    if (!socket) return;
+    if (selectedFile) {
+      const fd = { name: selectedFile.name, size: fmtSize(selectedFile.size), type: selectedFile.type, isFile: true, text: text || '' };
+      socket.emit('send_message', { text: text || '📎 ' + selectedFile.name, fileData: fd });
+      removeFile();
+    } else {
+      socket.emit('send_message', { text });
+    }
+    socket.emit('typing', false);
+    msgInput.value = '';
+    msgInput.placeholder = 'Type a message...';
+  }
+
+  // ── RENDER ──
+  function renderContacts(users) {
+    document.getElementById('contact-list').innerHTML = users.map(u => `
+      <div class="contact${u.username === myUsername ? ' active' : ''}">
+        <div class="av" style="background:${u.bg};color:${u.color}">${u.initials}<div class="av-dot dot-on"></div></div>
+        <div class="c-info"><div class="c-name">${esc(u.username)}</div><div class="c-last">${u.username === myUsername ? 'You' : 'Active now'}</div></div>
+      </div>`).join('');
+  }
+
+  function renderOnline(users) {
+    document.getElementById('online-list').innerHTML = users.map(u => `
+      <div class="online-user">
+        <div class="online-av" style="background:${u.bg};color:${u.color}">${u.initials}<div class="online-dot"></div></div>
+        <div><div class="online-name">${esc(u.username)}</div>${u.username === myUsername ? '<div class="online-you">(you)</div>' : ''}</div>
+      </div>`).join('');
+  }
+
+  function addMessage({ username, initials, bg, color, text, timestamp, socketId, fileData }) {
+    const isMine = socketId === mySocketId;
+    const div = document.createElement('div');
+    div.className = `msg${isMine ? ' mine' : ''}`;
+    let bubbleHTML = '';
+    if (fileData && fileData.isFile) {
+      bubbleHTML = `
+        <div class="file-bubble${isMine ? ' mine' : ''}">
+          <div class="file-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div class="file-info"><div class="fname">${esc(fileData.name)}</div><div class="fsize">${esc(fileData.size)}</div></div>
+        </div>
+        ${fileData.text ? `<div class="bubble${isMine ? ' mine' : ''}" style="margin-top:6px">${esc(fileData.text)}</div>` : ''}`;
+    } else {
+      bubbleHTML = `<div class="bubble${isMine ? ' mine' : ''}">${esc(text)}</div>`;
+    }
+    div.innerHTML = `
+      <div class="msg-av" style="background:${bg};color:${color}">${initials}</div>
+      <div class="msg-body">
+        <div class="msg-sender">${esc(username)}</div>
+        ${bubbleHTML}
+        <div class="msg-time">${timestamp}</div>
+      </div>`;
+    document.getElementById('messages').appendChild(div);
+    scroll();
+  }
+
+  function addSystemMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'sys-msg';
+    div.innerHTML = `<span>${esc(text)}</span>`;
+    document.getElementById('messages').appendChild(div);
+    scroll();
+  }
+
+  function showTyping(initials, bg, color) {
+    const div = document.createElement('div');
+    div.className = 'typing-row'; div.id = 'typing-indicator';
+    div.innerHTML = `<div class="msg-av" style="background:${bg};color:${color}">${initials}</div><div class="typing-bubble"><div class="td"></div><div class="td"></div><div class="td"></div></div>`;
+    document.getElementById('messages').appendChild(div);
+    scroll();
+  }
+
+  function removeTyping() { const el = document.getElementById('typing-indicator'); if (el) el.remove(); }
+  function scroll() { const el = document.getElementById('messages'); el.scrollTop = el.scrollHeight; }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
